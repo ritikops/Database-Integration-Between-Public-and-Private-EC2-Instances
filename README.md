@@ -45,3 +45,77 @@ This project sets up **two EC2 instances** (Public & Private), where the public 
 1. SSH into the **private EC2** via the public instance:  
    ```bash
    ssh -i your-key.pem ubuntu@private-instance-private-ip
+Install MySQL:
+
+sudo apt update && sudo apt install mysql-server -y
+Configure MySQL:
+sql
+
+CREATE DATABASE mydb;
+CREATE USER 'admin'@'%' IDENTIFIED BY 'StrongPassword';
+GRANT ALL PRIVILEGES ON mydb.* TO 'admin'@'%';
+FLUSH PRIVILEGES;
+Modify MySQL config (/etc/mysql/mysql.conf.d/mysqld.cnf):
+Change bind-address = 127.0.0.1 → bind-address = 0.0.0.0
+Restart MySQL:
+
+sudo systemctl restart mysql
+⚡ 1.3 Install MySQL Client on Public EC2
+SSH into public EC2:
+
+ssh -i your-key.pem ubuntu@public-instance-public-ip
+Install MySQL client:
+
+sudo apt update && sudo apt install mysql-client -y
+Test connection to private MySQL DB:
+
+mysql -h private-instance-private-ip -u admin -p
+Exit MySQL:
+sql
+
+
+exit;
+💻 1.4 Link Public EC2 to Private DB with Python
+Install MySQL Connector on the public EC2:
+
+pip install mysql-connector-python
+Create Python script (connect_db.py):
+python
+
+import mysql.connector
+
+db_host = "private-instance-private-ip"
+db_user = "admin"
+db_password = "StrongPassword"
+db_name = "mydb"
+
+try:
+    conn = mysql.connector.connect(
+        host=db_host,
+        user=db_user,
+        password=db_password,
+        database=db_name
+    )
+    cursor = conn.cursor()
+
+    cursor.execute("CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100))")
+    cursor.execute("INSERT INTO users (name) VALUES ('Ritik'), ('Sonu')")
+    conn.commit()
+
+    cursor.execute("SELECT * FROM users")
+    for row in cursor.fetchall():
+        print(row)
+
+    cursor.close()
+    conn.close()
+    print("Database connection successful!")
+
+except mysql.connector.Error as err:
+    print(f"Error: {err}")
+
+python3 connect_db.py
+Expected Output:
+
+(1, 'Ritik')
+(2, 'Sonu')
+Database connection successful!
